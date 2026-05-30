@@ -20,7 +20,7 @@ An adapter can return both listings and an error (partial success). Returning `{
 
 `src/lib/adapters/index.ts` exports two things:
 
-- **`liveAdapters`** — Array of adapters that hit real marketplaces: eBay, Etsy, Chrono24. These run concurrently during sync via `Promise.allSettled`.
+- **`liveAdapters`** — Array of adapters that hit real marketplaces: eBay, Etsy, Chrono24. These run sequentially during sync to stay within the Vercel function timeout (`maxDuration = 120`).
 - **`sampleAdapter`** — Demo fallback. Invoked separately in `runFullSync()` only when all live adapters return zero listings and none errored.
 
 ## eBay adapter
@@ -30,14 +30,19 @@ An adapter can return both listings and an error (partial success). Returning `{
 Constructs an eBay Canada search URL with params for the query, $50 price cap, pre-owned condition, and sorted by newly listed. Sends it to Olostep for scraping as markdown, then parses the result.
 
 **Parser:** `parseMarkdownListings()` walks the markdown line-by-line looking for:
-- Title links matching `[Title](https://www.ebay.ca/itm/...)`
+- **Image-wrapped title links** (primary live format): `[![Title](i.ebayimg.com/...)](https://www.ebay.ca/itm/...)` — extracts title, image, and listing URL in one match
+- **Plain title links** (fallback): `[Title](https://www.ebay.ca/itm/...)`
 - Prices in `C $X.XX` or `$X.XX` format
 - Shipping: "Free shipping" or `+C $X.XX shipping`
-- Condition strings: Pre-Owned, New, For parts, etc.
+- Condition strings on standalone lines: Pre-Owned, Brand New, For parts, etc. (excludes "new" from "Opens in a new window or tab")
 - Image URLs from `i.ebayimg.com`
 - Location from "from [location]" patterns
 
+If the parser finds 0 listings but the markdown is >500 chars, it returns an error instead of empty success — this prevents silent demo fallback when the markdown format changes.
+
 Each listing is deduplicated by `sourceId` (format: `v1|{itemId}|0`). Listings without a title, URL, or valid price are dropped.
+
+Scrape configuration uses `screenSize: desktop` and `waitBeforeScraping: 5000` for reliable SERP rendering.
 
 ## Etsy adapter
 
@@ -45,12 +50,26 @@ Each listing is deduplicated by `sourceId` (format: `v1|{itemId}|0`). Listings w
 
 Constructs an Etsy Canada search URL with the query, $50 max price, and CAD currency. Same scrape-then-parse pattern as eBay.
 
+**Parser:** `parseMarkdownListings()` uses a **two-pass** approach:
+
+- **Pass 1 (line-based):** Same pattern as eBay — image-wrapped links `[![Title](img)](listing-url)` and plain text links. Used for test fixtures and potential future format changes.
+- **Pass 2 (block-based, if pass 1 finds nothing):** Splits on `*   [` boundaries and extracts components from each block:
+  - `![Title](etsystatic-url)` — title from image alt text + image URL
+  - `](etsy.com/listing/ID/...)` — listing URL and ID
+  - `$XX.XX` or `Sale Price $XX.XX` — price
+  - `### Title` — fallback title from h3 heading
+  - `Free shipping` / `Free delivery`
+
+The block-based parser handles Etsy's real Olostep markdown where image, title, price, and URL are all on separate lines within multi-line markdown link blocks.
+
 **Parser differences from eBay:**
 - Title links match `https://www.etsy.com/...listing/{id}...`
-- Prices match `CA$X.XX` or `C$X.XX` or `$X.XX`
-- Default condition is "Pre-Owned" (Etsy doesn't always surface condition)
+- Prices match `CA$X.XX` or `C$X.XX` or `$X.XX` or `Sale Price $X.XX`
+- Default condition is "Pre-Owned" (Etsy doesn't surface condition)
 - Images come from `i.etsystatic.com`
 - `sourceId` is the Etsy listing ID extracted from the URL
+
+Same silent parse failure detection as eBay: if markdown >500 chars but 0 listings extracted, returns an error.
 
 ## Chrono24 adapter
 

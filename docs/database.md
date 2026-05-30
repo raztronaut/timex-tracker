@@ -52,6 +52,7 @@ Tracks each adapter's sync execution.
 | `inserted` | integer | Listings that passed rules (pipeline count, not a Postgres INSERT count) |
 | `updated` | integer | Listings excluded by rules (pipeline count, not a Postgres UPDATE count) |
 | `errors` | integer | Upsert or adapter errors |
+| `adapter_error` | text (nullable) | Error message from the adapter, if any — enables debugging sync issues from Supabase without Vercel logs |
 
 ## Upsert behavior
 

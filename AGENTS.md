@@ -26,7 +26,7 @@ Product narrative lives in `README.md` — don't duplicate it here.
 ## Commands
 
 ```bash
-npm test          # 98 unit tests (vitest), all mocked — safe and free
+npm test          # 119 unit tests (vitest), all mocked — safe and free
 npx tsc --noEmit  # TypeScript strict type-check
 npm run lint      # ESLint
 npm run build     # Full Next.js production build

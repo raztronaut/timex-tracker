@@ -8,12 +8,21 @@ import {
 const ETSY_SEARCH_URL = "https://www.etsy.com/ca/search";
 
 export function parseMarkdownListings(md: string): RawListing[] {
+  // Pass 1: Try single-line patterns (test fixtures, simple markdown formats)
+  const pass1 = parseLineBased(md);
+  if (pass1.length > 0) return pass1;
+
+  // Pass 2: Block-based extraction for multi-line Olostep format
+  return parseBlockBased(md);
+}
+
+function parseLineBased(md: string): RawListing[] {
   const listings: RawListing[] = [];
   const lines = md.split("\n");
   let current: Partial<RawListing> | null = null;
 
   for (const line of lines) {
-    // Pattern 1: Image-wrapped link (live Olostep format)
+    // Pattern 1: Image-wrapped link on one line
     // [![Title](img-url)](https://www.etsy.com/.../listing/12345...)
     const imgTitleMatch = line.match(
       /\[!\[([^\]]*)\]\(([^\)]+)\)\]\((https?:\/\/www\.etsy\.com\/[^\s)]*listing\/\d+[^\s)]*)\)/,
@@ -40,7 +49,7 @@ export function parseMarkdownListings(md: string): RawListing[] {
       continue;
     }
 
-    // Pattern 2: Plain text link (test fixtures / simpler markdown)
+    // Pattern 2: Plain text link
     const titleMatch = line.match(
       /\[([^\]]{10,})\]\((https?:\/\/www\.etsy\.com\/[^\s)]*listing\/\d+[^\s)]*)\)/,
     );
@@ -68,7 +77,6 @@ export function parseMarkdownListings(md: string): RawListing[] {
 
     if (!current) continue;
 
-    // Match prices: CA$12.34 or C$12.34 or $12.34
     const priceMatch = line.match(/(?:CA?\$|CAD\s*)\s*([\d,]+\.?\d*)/);
     if (priceMatch && current.price === 0) {
       current.price = parseFloat(priceMatch[1].replace(/,/g, ""));
@@ -80,7 +88,6 @@ export function parseMarkdownListings(md: string): RawListing[] {
       }
     }
 
-    // Free shipping
     if (/free\s+(delivery|shipping)/i.test(line)) {
       current.shippingCost = 0;
     }
@@ -94,6 +101,117 @@ export function parseMarkdownListings(md: string): RawListing[] {
 
   if (current?.title && current?.url) {
     finalizeListing(current, listings);
+  }
+
+  return dedupeListings(listings);
+}
+
+/**
+ * Block-based parser for real Olostep Etsy markdown where image, title,
+ * price, and listing URL are all on separate lines within `*   [` blocks.
+ */
+function parseBlockBased(md: string): RawListing[] {
+  const listings: RawListing[] = [];
+  const lines = md.split("\n");
+
+  // Split into blocks at each `*   [` boundary
+  const blockStarts: number[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (/^\*\s+\[/.test(lines[i].trimEnd())) {
+      blockStarts.push(i);
+    }
+  }
+
+  for (let b = 0; b < blockStarts.length; b++) {
+    const start = blockStarts[b];
+    const end = b + 1 < blockStarts.length ? blockStarts[b + 1] : lines.length;
+    const blockLines = lines.slice(start, end);
+
+    let title = "";
+    let imageUrl = "";
+    let listingUrl = "";
+    let listingId = "";
+    let price = 0;
+    let shippingCost: number | null = null;
+
+    for (const line of blockLines) {
+      const trimmed = line.trim();
+
+      // Image with alt text: ![Title](etsystatic-url)
+      if (!title) {
+        const imgMatch = trimmed.match(
+          /^!\[([^\]]+)\]\((https?:\/\/i\.etsystatic\.com\/[^\)]+)\)$/,
+        );
+        if (imgMatch && imgMatch[1].length >= 5) {
+          title = imgMatch[1].trim();
+          imageUrl = imgMatch[2];
+          continue;
+        }
+      }
+
+      // H3 title: ### Title (use as fallback if image alt was empty)
+      if (!title) {
+        const h3Match = trimmed.match(/^###\s+(.+)/);
+        if (h3Match && h3Match[1].length >= 5) {
+          title = h3Match[1].trim();
+          continue;
+        }
+      }
+
+      // Listing URL: ](https://www.etsy.com/listing/ID/...)
+      if (!listingId) {
+        const urlMatch = trimmed.match(
+          /^\]\((https?:\/\/www\.etsy\.com\/[^\s)]*listing\/(\d+)[^\s)]*)\)/,
+        );
+        if (urlMatch) {
+          listingUrl = urlMatch[1].split("?")[0];
+          listingId = urlMatch[2];
+          continue;
+        }
+      }
+
+      // Sale price: "Sale Price $XX.XX $XX.XX"
+      if (price === 0) {
+        const saleMatch = trimmed.match(/Sale Price \$([\d,]+\.?\d*)/);
+        if (saleMatch) {
+          price = parseFloat(saleMatch[1].replace(/,/g, ""));
+          continue;
+        }
+      }
+
+      // Regular price: "$XX.XX" or "CA$XX.XX"
+      if (price === 0) {
+        const priceMatch = trimmed.match(/^(?:CA)?\$([\d,]+\.?\d*)$/);
+        if (priceMatch) {
+          price = parseFloat(priceMatch[1].replace(/,/g, ""));
+          continue;
+        }
+      }
+
+      // Free shipping / delivery
+      if (/free\s+(delivery|shipping)/i.test(trimmed)) {
+        shippingCost = 0;
+      }
+    }
+
+    if (title && listingId && price > 0) {
+      finalizeListing(
+        {
+          source: "etsy",
+          sourceId: listingId,
+          url: listingUrl,
+          title,
+          price,
+          currency: "CAD",
+          conditionRaw: "Pre-Owned",
+          images: imageUrl ? [imageUrl] : [],
+          shippingCost,
+          location: null,
+          listedAt: null,
+        },
+        listings,
+      );
+    }
   }
 
   return dedupeListings(listings);
