@@ -41,7 +41,7 @@ export function FilterBar({
       <div
         role="tablist"
         aria-label="Listing filter"
-        className="flex rounded-lg bg-zinc-900/60 p-0.5 border border-zinc-800/80 shadow-sm"
+        className="flex rounded-xl bg-card/90 p-0.5 border border-card-border shadow-[var(--shadow-border)]"
       >
         {FILTERS.map((f) => (
           <button
@@ -49,10 +49,10 @@ export function FilterBar({
             role="tab"
             aria-selected={filter === f.value}
             onClick={() => onFilterChange(f.value)}
-            className={`rounded-md px-3.5 py-1.25 text-xs font-semibold tracking-tight transition-[background-color,border-color,color] duration-150 ease-out active:scale-[0.96] border ${
+            className={`rounded-lg px-3.5 py-1.25 text-xs font-semibold tracking-tight transition-[background-color,border-color,color,transform] duration-150 ease-out active:scale-[0.96] border ${
               filter === f.value
-                ? "bg-zinc-800 border-zinc-700 text-zinc-100 shadow-sm font-bold"
-                : "text-zinc-400 hover:text-zinc-200 border-transparent hover:bg-zinc-850/40"
+                ? "bg-background border-card-border/60 text-foreground shadow-sm font-bold"
+                : "text-muted hover:text-foreground border-transparent hover:bg-card-border/30"
             }`}
           >
             {f.label}
@@ -66,10 +66,10 @@ export function FilterBar({
           value={sort}
           onChange={(e) => onSortChange(e.target.value)}
           aria-label="Sort order"
-          className="appearance-none rounded-lg bg-zinc-900/60 border border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900/80 px-4 pr-9 py-2 text-xs font-semibold text-zinc-200 shadow-sm outline-none transition-[border-color,background-color] duration-150 ease-out focus:ring-1 focus:ring-zinc-700/40 cursor-pointer bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23a1a1aa%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E')] bg-[length:0.6rem_auto] bg-[right_0.75rem_center] bg-no-repeat"
+          className="appearance-none rounded-lg bg-card border border-card-border hover:border-muted/50 hover:bg-card/85 px-4 pr-9 py-2 text-xs font-semibold text-foreground shadow-sm outline-none transition-[border-color,background-color] duration-150 ease-out focus:ring-1 focus:ring-accent/40 cursor-pointer bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23a1a1aa%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E')] bg-[length:0.6rem_auto] bg-[right_0.75rem_center] bg-no-repeat"
         >
           {SORTS.map((s) => (
-            <option key={s.value} value={s.value} className="bg-zinc-950 text-zinc-200">
+            <option key={s.value} value={s.value} className="bg-card text-foreground">
               {s.label}
             </option>
           ))}
@@ -81,10 +81,10 @@ export function FilterBar({
           value={source}
           onChange={(e) => onSourceChange(e.target.value)}
           aria-label="Marketplace source"
-          className="appearance-none rounded-lg bg-zinc-900/60 border border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900/80 px-4 pr-9 py-2 text-xs font-semibold text-zinc-200 shadow-sm outline-none transition-[border-color,background-color] duration-150 ease-out focus:ring-1 focus:ring-zinc-700/40 cursor-pointer bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23a1a1aa%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E')] bg-[length:0.6rem_auto] bg-[right_0.75rem_center] bg-no-repeat"
+          className="appearance-none rounded-lg bg-card border border-card-border hover:border-muted/50 hover:bg-card/85 px-4 pr-9 py-2 text-xs font-semibold text-foreground shadow-sm outline-none transition-[border-color,background-color] duration-150 ease-out focus:ring-1 focus:ring-accent/40 cursor-pointer bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23a1a1aa%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E')] bg-[length:0.6rem_auto] bg-[right_0.75rem_center] bg-no-repeat"
         >
           {SOURCES.map((s) => (
-            <option key={s.value} value={s.value} className="bg-zinc-950 text-zinc-200">
+            <option key={s.value} value={s.value} className="bg-card text-foreground">
               {s.label}
             </option>
           ))}
