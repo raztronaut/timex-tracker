@@ -4,6 +4,8 @@
 
 A tool for a vintage Timex collector to stay on top of interesting listings across eBay, Etsy, and other marketplaces — without manually checking each site.
 
+> **Current production status:** only eBay syncing is live on main/prod right now. Etsy and other marketplace work is in open PRs (time-boxed to ~2 hours for this pass), so review those PRs for in-progress integrations.
+
 ## Documentation
 
 | Document | Audience | Contents |
@@ -39,7 +41,7 @@ These define the taste profile. A listing with keywords like "Marlin", "DeKalb",
 ## How It Works
 
 ```
-1. SYNC      Pull listings from eBay + Etsy (via Olostep scraping API)
+1. SYNC      Pull listings from eBay in production today (Etsy/others are in open PRs)
                 ↓
 2. NORMALIZE  Convert to CAD, calculate total cost (price + shipping)
                 ↓
@@ -50,7 +52,7 @@ These define the taste profile. A listing with keywords like "Marlin", "DeKalb",
 5. SURFACE    Show candidates first, with scores, tags, and rationale
 ```
 
-**Sync** runs on a daily cron (Vercel) or manually via the dashboard. Each sync pulls from a pluggable set of marketplace adapters — eBay and Etsy are live via Olostep; Chrono24 is stubbed (no public API). If all live adapters return zero listings and none errored, sample data fills the demo. If an adapter failed, the failure is surfaced instead.
+**Sync** runs on a daily cron (Vercel) or manually via the dashboard. Each sync pulls sequentially from marketplace adapters — only eBay is currently enabled on main/prod via Olostep. Etsy and additional marketplace adapters are being built in separate PRs. Chrono24 is stubbed (no public API). If all live adapters return zero listings and none errored, sample data fills the demo. When live adapters find real listings, stale demo data is purged. If an adapter failed, the failure is surfaced in the UI with amber warning banners.
 
 **Scoring** has two modes:
 - **Keyword scorer** (default): A weighted rule set derived from the taste profile. Zero API cost, <1ms per listing, deterministic, fully auditable.
