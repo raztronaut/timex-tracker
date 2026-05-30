@@ -1,6 +1,6 @@
 import type { Listing, ListingSource, NormalizedListing, InterestResult } from "./types";
 import { CANDIDATE_THRESHOLD } from "./normalize";
-import { getServiceClient } from "./supabase";
+import { getServiceClient, hasServiceSupabaseEnv } from "./supabase";
 
 /** Snake-case shape matching the `listings` table in Supabase. */
 interface ListingRow {
@@ -109,6 +109,10 @@ export async function queryListings(opts: {
   limit: number;
   offset: number;
 }) {
+  if (!hasServiceSupabaseEnv()) {
+    return { listings: [], total: 0, error: null };
+  }
+
   const db = getServiceClient();
   let query = db.from("listings").select("*", { count: "exact" });
 

@@ -36,14 +36,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (await isWithinCooldown()) {
-    return NextResponse.json(
-      { ok: false, error: "Sync cooldown — try again in a few minutes" },
-      { status: 429 }
-    );
-  }
-
   try {
+    if (await isWithinCooldown()) {
+      return NextResponse.json(
+        { ok: false, error: "Sync cooldown — try again in a few minutes" },
+        { status: 429 },
+      );
+    }
+
     return await handleSync();
   } catch (err) {
     console.error("Sync error:", err);

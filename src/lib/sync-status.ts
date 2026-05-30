@@ -1,4 +1,4 @@
-import { getServiceClient } from "./supabase";
+import { getServiceClient, hasServiceSupabaseEnv } from "./supabase";
 import type { SyncRun, ListingSource } from "./types";
 
 interface SyncRunRow {
@@ -34,6 +34,14 @@ export interface SyncStatus {
 }
 
 export async function getSyncStatus(): Promise<SyncStatus> {
+  if (!hasServiceSupabaseEnv()) {
+    return {
+      recentRuns: [],
+      totalListings: 0,
+      candidateCount: 0,
+    };
+  }
+
   const db = getServiceClient();
 
   const [runsResult, totalResult, candidateResult] = await Promise.all([
