@@ -46,6 +46,7 @@ export interface SyncRun {
   inserted: number;
   updated: number;
   errors: number;
+  adapterError?: string | null;
 }
 
 export interface NormalizedListing {

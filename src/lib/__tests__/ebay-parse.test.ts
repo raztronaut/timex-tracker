@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "fs";
+import { join } from "path";
 import { parseMarkdownListings } from "../adapters/ebay";
 
 const SAMPLE_MD = `
@@ -143,5 +145,59 @@ Pre-Owned
 `;
     const listings = parseMarkdownListings(md);
     expect(listings[0].shippingCost).toBeNull();
+  });
+});
+
+describe("eBay parseMarkdownListings (live Olostep format)", () => {
+  const liveMd = readFileSync(
+    join(__dirname, "fixtures/ebay-live-sample.md"),
+    "utf8",
+  );
+
+  it("parses image-wrapped title links from live markdown", () => {
+    const listings = parseMarkdownListings(liveMd);
+    expect(listings.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it("extracts title from [![Title](img)](url) format", () => {
+    const listings = parseMarkdownListings(liveMd);
+    expect(listings[0].title).toContain("Timex");
+    expect(listings[0].title.length).toBeGreaterThan(10);
+  });
+
+  it("extracts image URL from the image-link", () => {
+    const listings = parseMarkdownListings(liveMd);
+    expect(listings[0].images.length).toBeGreaterThan(0);
+    expect(listings[0].images[0]).toContain("ebayimg.com");
+  });
+
+  it("extracts item ID into sourceId", () => {
+    const listings = parseMarkdownListings(liveMd);
+    expect(listings[0].sourceId).toMatch(/^v1\|\d+\|0$/);
+  });
+
+  it("strips query params from item URL", () => {
+    const listings = parseMarkdownListings(liveMd);
+    expect(listings[0].url).not.toContain("?");
+    expect(listings[0].url).toMatch(/ebay\.ca\/itm\/\d+$/);
+  });
+
+  it("extracts price from indented C $ lines", () => {
+    const listings = parseMarkdownListings(liveMd);
+    expect(listings[0].price).toBeGreaterThan(0);
+  });
+
+  it("extracts shipping from +C $ lines", () => {
+    const listings = parseMarkdownListings(liveMd);
+    const withShipping = listings.filter((l) => l.shippingCost !== null);
+    expect(withShipping.length).toBeGreaterThan(0);
+  });
+
+  it("extracts Pre-Owned condition without matching 'new window' text", () => {
+    const listings = parseMarkdownListings(liveMd);
+    const preOwned = listings.filter((l) => l.conditionRaw === "Pre-Owned");
+    expect(preOwned.length).toBeGreaterThan(0);
+    const wrongNew = listings.filter((l) => l.conditionRaw.toLowerCase() === "new");
+    expect(wrongNew).toHaveLength(0);
   });
 });

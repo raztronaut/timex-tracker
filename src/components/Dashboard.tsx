@@ -33,7 +33,7 @@ export function Dashboard({
     initialListings,
     initialTotal,
   });
-  const { syncing, totalListings, candidateCount, lastSyncAt, sync } =
+  const { syncing, totalListings, candidateCount, lastSyncAt, syncWarnings, sync } =
     useSync(refresh, initialSyncStatus);
   const handleClose = useCallback(() => setSelected(null), []);
 
@@ -67,6 +67,7 @@ export function Dashboard({
             candidateCount={candidateCount}
             lastSyncAt={lastSyncAt}
             syncing={syncing}
+            syncWarnings={syncWarnings}
             onSync={sync}
           />
         </div>

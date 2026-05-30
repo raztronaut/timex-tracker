@@ -100,7 +100,7 @@ async function syncAdapter(
 async function finishRun(
   db: ReturnType<typeof getServiceClient>,
   runId: string | undefined,
-  result: SyncResult
+  result: SyncResult,
 ) {
   if (!runId) return;
   await db
@@ -111,31 +111,39 @@ async function finishRun(
       inserted: result.passed,
       updated: result.excluded,
       errors: result.errors,
+      adapter_error: result.adapterError ?? null,
     })
     .eq("id", runId);
 }
 
 export async function runFullSync(query = "timex watch"): Promise<SyncResult[]> {
-  const settled = await Promise.allSettled(
-    liveAdapters.map((adapter) => syncAdapter(adapter, query))
-  );
-
-  const results: SyncResult[] = settled.map((r, i) =>
-    r.status === "fulfilled"
-      ? r.value
-      : {
-          source: liveAdapters[i].source,
-          found: 0,
-          passed: 0,
-          excluded: 0,
-          errors: 1,
-          adapterError: String((r as PromiseRejectedResult).reason),
-          durationMs: 0,
-        }
-  );
+  // Run adapters sequentially — parallel Olostep scrapes risk hitting the
+  // Vercel function timeout (~120s) since each scrape can take up to 55s.
+  const results: SyncResult[] = [];
+  for (const adapter of liveAdapters) {
+    try {
+      results.push(await syncAdapter(adapter, query));
+    } catch (err) {
+      results.push({
+        source: adapter.source,
+        found: 0,
+        passed: 0,
+        excluded: 0,
+        errors: 1,
+        adapterError: String(err),
+        durationMs: 0,
+      });
+    }
+  }
 
   const totalFound = results.reduce((sum, r) => sum + r.found, 0);
   const anyAdapterError = results.some((r) => !!r.adapterError);
+
+  // When live adapters find listings, purge stale demo data.
+  if (totalFound > 0) {
+    const db = getServiceClient();
+    await db.from("listings").delete().eq("source", "sample");
+  }
 
   // Only fall back to sample data when all live adapters returned zero listings
   // AND none of them reported an error (genuine "nothing available" vs failure).

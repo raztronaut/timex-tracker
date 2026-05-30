@@ -10,6 +10,7 @@ interface SyncRunRow {
   inserted: number;
   updated: number;
   errors: number;
+  adapter_error?: string | null;
 }
 
 export function syncRunFromRow(row: SyncRunRow): SyncRun {
@@ -22,6 +23,7 @@ export function syncRunFromRow(row: SyncRunRow): SyncRun {
     inserted: row.inserted,
     updated: row.updated,
     errors: row.errors,
+    adapterError: row.adapter_error,
   };
 }
 

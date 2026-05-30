@@ -34,5 +34,9 @@ create table if not exists sync_runs (
   found integer not null default 0,
   inserted integer not null default 0,
   updated integer not null default 0,
-  errors integer not null default 0
+  errors integer not null default 0,
+  adapter_error text
 );
+
+alter table if exists sync_runs
+add column if not exists adapter_error text;

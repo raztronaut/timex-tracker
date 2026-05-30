@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { runFullSync } from "@/lib/sync";
 import { getServiceClient } from "@/lib/supabase";
 
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 const MIN_SYNC_INTERVAL_MS = 5 * 60 * 1000; // 5-minute server-side cooldown
 

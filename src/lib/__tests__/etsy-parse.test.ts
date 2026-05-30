@@ -118,3 +118,28 @@ CA$0.00
     expect(listings).toHaveLength(0);
   });
 });
+
+describe("Etsy parseMarkdownListings (image-wrapped link format)", () => {
+  it("parses [![Title](img)](listing-url) format", () => {
+    const md = `
+*   [![Vintage Timex Marlin Watch](https://i.etsystatic.com/abc/il_340x270.jpg)](https://www.etsy.com/ca/listing/1234567890/vintage-timex-marlin?ref=search)
+
+    CA$38.00
+
+    Free delivery
+
+*   [![Timex Expedition Field Watch](https://i.etsystatic.com/def/il_340x270.jpg)](https://www.etsy.com/ca/listing/9876543210/timex-expedition?ref=search)
+
+    CA$22.50
+`;
+    const listings = parseMarkdownListings(md);
+    expect(listings).toHaveLength(2);
+    expect(listings[0].title).toBe("Vintage Timex Marlin Watch");
+    expect(listings[0].sourceId).toBe("1234567890");
+    expect(listings[0].images[0]).toContain("etsystatic.com");
+    expect(listings[0].price).toBe(38);
+    expect(listings[0].shippingCost).toBe(0);
+    expect(listings[1].title).toBe("Timex Expedition Field Watch");
+    expect(listings[1].price).toBe(22.5);
+  });
+});

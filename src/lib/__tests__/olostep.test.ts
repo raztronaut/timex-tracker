@@ -85,4 +85,69 @@ describe("olostep scrape", () => {
       scrape({ url: "https://example.com", formats: ["markdown"] })
     ).rejects.toThrow("ECONNREFUSED");
   });
+
+  it("throws when target page returns 4xx/5xx status", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          result: {
+            markdown_content: "",
+            page_metadata: { status_code: 403, title: "Access Denied" },
+          },
+        }),
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const { scrape } = await import("../olostep");
+    await expect(
+      scrape({ url: "https://example.com", formats: ["markdown"] })
+    ).rejects.toThrow("target page returned 403");
+  });
+
+  it("falls back to hosted URL when inline content is empty", async () => {
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            result: {
+              markdown_content: null,
+              markdown_hosted_url: "https://storage.example.com/md.txt",
+            },
+          }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        text: () => Promise.resolve("# Hosted content"),
+      });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const { scrape } = await import("../olostep");
+    const result = await scrape({ url: "https://example.com", formats: ["markdown"] });
+
+    expect(result.markdown_content).toBe("# Hosted content");
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("passes actions and screen_size to API body", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ result: { markdown_content: "# Test" } }),
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const { scrape } = await import("../olostep");
+    await scrape({
+      url: "https://example.com",
+      formats: ["markdown"],
+      screenSize: { screenType: "desktop" },
+      actions: [{ type: "scroll", direction: "down", amount: 1000 }],
+    });
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.screen_size).toEqual({ screen_type: "desktop" });
+    expect(body.actions).toEqual([{ type: "scroll", direction: "down", amount: 1000 }]);
+  });
 });

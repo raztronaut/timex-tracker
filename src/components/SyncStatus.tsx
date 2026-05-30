@@ -2,12 +2,14 @@
 
 import { RefreshCw, AlertTriangle, CheckCircle } from "lucide-react";
 import { Button } from "./ui";
+import type { SyncWarning } from "@/hooks/useSync";
 
 interface SyncStatusProps {
   totalListings: number;
   candidateCount: number;
   lastSyncAt: string | null;
   syncing: boolean;
+  syncWarnings?: SyncWarning[];
   onSync: () => void;
 }
 
@@ -37,6 +39,7 @@ export function SyncStatus({
   candidateCount,
   lastSyncAt,
   syncing,
+  syncWarnings = [],
   onSync,
 }: SyncStatusProps) {
   const cooldown = isOnCooldown(lastSyncAt);
@@ -118,6 +121,23 @@ export function SyncStatus({
         />
         <span>{syncing ? "Syncing..." : "Sync Now"}</span>
       </Button>
+
+      {syncWarnings.length > 0 && (
+        <div className="w-full mt-1">
+          {syncWarnings.map((w, i) => (
+            <div
+              key={i}
+              className="flex items-start gap-1.5 text-xs text-amber-400/90 mt-1"
+            >
+              <AlertTriangle size={11} className="mt-0.5 shrink-0" />
+              <span>
+                <span className="font-medium capitalize">{w.source}:</span>{" "}
+                {w.message}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

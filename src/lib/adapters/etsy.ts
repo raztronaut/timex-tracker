@@ -13,20 +13,47 @@ export function parseMarkdownListings(md: string): RawListing[] {
   let current: Partial<RawListing> | null = null;
 
   for (const line of lines) {
-    // Match title links: [Title](https://www.etsy.com/...listing/12345...)
+    // Pattern 1: Image-wrapped link (live Olostep format)
+    // [![Title](img-url)](https://www.etsy.com/.../listing/12345...)
+    const imgTitleMatch = line.match(
+      /\[!\[([^\]]*)\]\(([^\)]+)\)\]\((https?:\/\/www\.etsy\.com\/[^\s)]*listing\/\d+[^\s)]*)\)/,
+    );
+    if (imgTitleMatch && imgTitleMatch[1].length >= 5) {
+      if (current?.title && current?.url) {
+        finalizeListing(current, listings);
+      }
+      const rawUrl = imgTitleMatch[3].split("?")[0];
+      const listingId = extractListingId(rawUrl);
+      current = {
+        source: "etsy",
+        sourceId: listingId,
+        url: rawUrl,
+        title: imgTitleMatch[1].trim(),
+        currency: "CAD",
+        conditionRaw: "Pre-Owned",
+        images: [imgTitleMatch[2]],
+        location: null,
+        listedAt: null,
+        price: 0,
+        shippingCost: null,
+      };
+      continue;
+    }
+
+    // Pattern 2: Plain text link (test fixtures / simpler markdown)
     const titleMatch = line.match(
-      /\[([^\]]{10,})\]\((https?:\/\/www\.etsy\.com\/[^\s)]*listing\/\d+[^\s)]*)\)/
+      /\[([^\]]{10,})\]\((https?:\/\/www\.etsy\.com\/[^\s)]*listing\/\d+[^\s)]*)\)/,
     );
     if (titleMatch) {
       if (current?.title && current?.url) {
         finalizeListing(current, listings);
       }
-      const url = titleMatch[2].split("?")[0];
-      const listingId = extractListingId(url);
+      const rawUrl = titleMatch[2].split("?")[0];
+      const listingId = extractListingId(rawUrl);
       current = {
         source: "etsy",
         sourceId: listingId,
-        url,
+        url: rawUrl,
         title: titleMatch[1].trim(),
         currency: "CAD",
         conditionRaw: "Pre-Owned",
@@ -59,8 +86,8 @@ export function parseMarkdownListings(md: string): RawListing[] {
     }
 
     if (current.images) {
-      for (const url of extractMarketplaceImageUrls(line, "etsy")) {
-        current.images.push(url);
+      for (const imgUrl of extractMarketplaceImageUrls(line, "etsy")) {
+        current.images.push(imgUrl);
       }
     }
   }
@@ -119,8 +146,9 @@ export const etsyAdapter: ListingAdapter = {
       const result = await scrape({
         url: searchUrl,
         formats: ["markdown", "html"],
-        waitBeforeScraping: 3000,
+        waitBeforeScraping: 5000,
         country: "CA",
+        screenSize: { screenType: "desktop" },
       });
 
       const md = result.markdown_content || "";
@@ -132,12 +160,20 @@ export const etsyAdapter: ListingAdapter = {
       const listings = enrichListingsWithHtmlImages(
         parseMarkdownListings(md),
         result.html_content,
-        "etsy"
+        "etsy",
       );
       const withImages = listings.filter((l) => l.images.length > 0).length;
       console.log(
-        `Etsy: parsed ${listings.length} listings (${withImages} with images) from ${md.length} chars markdown`
+        `Etsy: parsed ${listings.length} listings (${withImages} with images) from ${md.length} chars markdown`,
       );
+
+      if (listings.length === 0 && md.length > 500) {
+        return {
+          listings: [],
+          error: `Parser found 0 listings in ${md.length} chars of markdown — format may have changed`,
+        };
+      }
+
       return { listings };
     } catch (err) {
       console.error("Etsy scrape failed:", err);
