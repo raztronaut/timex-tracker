@@ -262,7 +262,7 @@ export function ShowcaseView({
                 // Cylindrical cylinder drum projection style
                 const transformStyle = {
                   transform: `perspective(800px) rotateX(${diff * -20}deg) translateZ(${-Math.abs(diff) * 20}px) scale(${1 - Math.abs(diff) * 0.08})`,
-                  opacity: isOutOfView ? 0 : isSelected ? 1 : 0.45,
+                  opacity: isOutOfView ? 0 : isSelected ? 1 : 0.7,
                   height: `${itemHeight}px`,
                 };
 
@@ -276,7 +276,7 @@ export function ShowcaseView({
                     <span className={`truncate uppercase tracking-widest font-sans transition-colors duration-200 ${
                       isSelected
                         ? "text-accent font-extrabold text-xs"
-                        : "text-muted hover:text-foreground font-medium text-[10px]"
+                        : "text-foreground/60 hover:text-foreground font-medium text-[10px]"
                     }`}>
                       {getShortTitle(item.title)}
                     </span>
