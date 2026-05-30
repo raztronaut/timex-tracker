@@ -1,5 +1,7 @@
 # Timex Tracker
 
+**[Live Demo →](https://timex-tracker.vercel.app)**
+
 A tool for a vintage Timex collector to stay on top of interesting listings across eBay, Etsy, and other marketplaces — without manually checking each site.
 
 ## What It Does
