@@ -1,17 +1,17 @@
 import { getServiceClient } from "./supabase";
-import { adapters } from "./adapters";
+import { liveAdapters, sampleAdapter } from "./adapters";
 import { normalize, passesRules } from "./normalize";
 import { scoreListingsBatch } from "./scorer";
+import { toScoredRow, toExcludedRow, upsertListing } from "./listings";
 import type { ListingAdapter, ListingSource } from "./types";
-
-const CANDIDATE_THRESHOLD = 55;
 
 export interface SyncResult {
   source: ListingSource;
   found: number;
-  inserted: number;
-  updated: number;
+  passed: number;
+  excluded: number;
   errors: number;
+  adapterError?: string;
   durationMs: number;
 }
 
@@ -23,8 +23,8 @@ async function syncAdapter(
   const result: SyncResult = {
     source: adapter.source,
     found: 0,
-    inserted: 0,
-    updated: 0,
+    passed: 0,
+    excluded: 0,
     errors: 0,
     durationMs: 0,
   };
@@ -40,7 +40,14 @@ async function syncAdapter(
   const runId = runData?.id;
 
   try {
-    const rawListings = await adapter.fetchListings(query);
+    const adapterResult = await adapter.fetchListings(query);
+
+    if (adapterResult.error) {
+      result.adapterError = adapterResult.error;
+      result.errors++;
+    }
+
+    const rawListings = adapterResult.listings;
     result.found = rawListings.length;
 
     if (rawListings.length === 0) {
@@ -60,85 +67,28 @@ async function syncAdapter(
     }
 
     for (let i = 0; i < passing.length; i++) {
-      const listing = passing[i];
-      const score = scores[i];
-
-      try {
-        const { error } = await db.from("listings").upsert(
-          {
-            source: listing.source,
-            source_id: listing.sourceId,
-            url: listing.url,
-            title: listing.title,
-            price: listing.price,
-            currency: listing.currency,
-            shipping_cost: listing.shippingCost,
-            total_cost_cad: listing.totalCostCad,
-            condition_raw: listing.conditionRaw,
-            is_broken: listing.isBroken,
-            images: listing.images,
-            location: listing.location,
-            listed_at: listing.listedAt,
-            interest_score: score.score,
-            interest_tags: score.tags,
-            interest_rationale: score.rationale,
-            is_candidate: score.score >= CANDIDATE_THRESHOLD,
-            last_seen_at: new Date().toISOString(),
-          },
-          { onConflict: "source,source_id" }
-        );
-
-        if (error) {
-          console.error("Upsert error:", error);
-          result.errors++;
-        } else {
-          result.inserted++;
-        }
-      } catch (err) {
-        console.error("Row upsert failed:", err);
+      const row = toScoredRow(passing[i], scores[i]);
+      const { error } = await upsertListing(row);
+      if (error) {
+        console.error("Upsert error:", error);
         result.errors++;
+      } else {
+        result.passed++;
       }
     }
 
     for (const listing of failing) {
-      try {
-        const { error } = await db.from("listings").upsert(
-          {
-            source: listing.source,
-            source_id: listing.sourceId,
-            url: listing.url,
-            title: listing.title,
-            price: listing.price,
-            currency: listing.currency,
-            shipping_cost: listing.shippingCost,
-            total_cost_cad: listing.totalCostCad,
-            condition_raw: listing.conditionRaw,
-            is_broken: listing.isBroken,
-            images: listing.images,
-            location: listing.location,
-            listed_at: listing.listedAt,
-            interest_score: null,
-            interest_tags: [],
-            interest_rationale: listing.isBroken
-              ? "Excluded: item appears broken"
-              : "Excluded: over $50 CAD total cost",
-            is_candidate: false,
-            last_seen_at: new Date().toISOString(),
-          },
-          { onConflict: "source,source_id" }
-        );
-
-        if (error) {
-          result.errors++;
-        } else {
-          result.updated++;
-        }
-      } catch {
+      const row = toExcludedRow(listing);
+      const { error } = await upsertListing(row);
+      if (error) {
         result.errors++;
+      } else {
+        result.excluded++;
       }
     }
   } catch (err) {
     console.error(`Adapter ${adapter.source} failed:`, err);
+    result.adapterError = String(err);
     result.errors++;
   }
 
@@ -158,28 +108,41 @@ async function finishRun(
     .update({
       finished_at: new Date().toISOString(),
       found: result.found,
-      inserted: result.inserted,
-      updated: result.updated,
+      inserted: result.passed,
+      updated: result.excluded,
       errors: result.errors,
     })
     .eq("id", runId);
 }
 
 export async function runFullSync(query = "timex watch"): Promise<SyncResult[]> {
-  const results = await Promise.allSettled(
-    adapters.map((adapter) => syncAdapter(adapter, query))
+  const settled = await Promise.allSettled(
+    liveAdapters.map((adapter) => syncAdapter(adapter, query))
   );
 
-  return results.map((r, i) =>
+  const results: SyncResult[] = settled.map((r, i) =>
     r.status === "fulfilled"
       ? r.value
       : {
-          source: adapters[i].source,
+          source: liveAdapters[i].source,
           found: 0,
-          inserted: 0,
-          updated: 0,
+          passed: 0,
+          excluded: 0,
           errors: 1,
+          adapterError: String((r as PromiseRejectedResult).reason),
           durationMs: 0,
         }
   );
+
+  const totalFound = results.reduce((sum, r) => sum + r.found, 0);
+  const anyAdapterError = results.some((r) => !!r.adapterError);
+
+  // Only fall back to sample data when all live adapters returned zero listings
+  // AND none of them reported an error (genuine "nothing available" vs failure).
+  if (totalFound === 0 && !anyAdapterError) {
+    const fallback = await syncAdapter(sampleAdapter, query);
+    results.push(fallback);
+  }
+
+  return results;
 }

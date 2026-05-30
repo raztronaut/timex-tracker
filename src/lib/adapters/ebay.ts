@@ -1,9 +1,13 @@
-import type { ListingAdapter, RawListing } from "../types";
+import type { ListingAdapter, RawListing, AdapterResult } from "../types";
 import { scrape } from "../olostep";
+import {
+  enrichListingsWithHtmlImages,
+  extractMarketplaceImageUrls,
+} from "./parse-images";
 
 const EBAY_SEARCH_URL = "https://www.ebay.ca/sch/i.html";
 
-function parseMarkdownListings(md: string): RawListing[] {
+export function parseMarkdownListings(md: string): RawListing[] {
   const listings: RawListing[] = [];
 
   // eBay search results in markdown typically render as repeated blocks
@@ -14,7 +18,7 @@ function parseMarkdownListings(md: string): RawListing[] {
   for (const line of lines) {
     // Match title links: [Title Text](https://www.ebay.ca/itm/...)
     const titleMatch = line.match(
-      /\[([^\]]{10,})\]\((https?:\/\/www\.ebay\.ca\/itm\/[^\s)]+)\)/
+      /\[([^\]]{10,})\]\((https?:\/\/www\.ebay\.(?:ca|com)\/itm\/[^\s)]+)\)/
     );
     if (titleMatch) {
       if (current?.title && current?.url) {
@@ -64,10 +68,10 @@ function parseMarkdownListings(md: string): RawListing[] {
       current.conditionRaw = condMatch[1];
     }
 
-    // Match image URLs
-    const imgMatch = line.match(/(https?:\/\/i\.ebayimg\.com\/[^\s)]+)/);
-    if (imgMatch && current.images) {
-      current.images.push(imgMatch[1]);
+    if (current.images) {
+      for (const url of extractMarketplaceImageUrls(line, "ebay")) {
+        current.images.push(url);
+      }
     }
 
     // Match location
@@ -81,7 +85,7 @@ function parseMarkdownListings(md: string): RawListing[] {
     finalizeListing(current, listings);
   }
 
-  return listings;
+  return dedupeListings(listings);
 }
 
 function finalizeListing(partial: Partial<RawListing>, out: RawListing[]) {
@@ -95,9 +99,18 @@ function finalizeListing(partial: Partial<RawListing>, out: RawListing[]) {
     currency: partial.currency || "CAD",
     shippingCost: partial.shippingCost ?? null,
     conditionRaw: partial.conditionRaw || "",
-    images: partial.images || [],
+    images: [...new Set(partial.images || [])],
     location: partial.location || null,
     listedAt: null,
+  });
+}
+
+function dedupeListings(listings: RawListing[]): RawListing[] {
+  const seen = new Set<string>();
+  return listings.filter((l) => {
+    if (seen.has(l.sourceId)) return false;
+    seen.add(l.sourceId);
+    return true;
   });
 }
 
@@ -112,7 +125,7 @@ function extractItemId(url: string): string {
 export const ebayAdapter: ListingAdapter = {
   source: "ebay",
 
-  async fetchListings(query: string): Promise<RawListing[]> {
+  async fetchListings(query: string): Promise<AdapterResult> {
     const params = new URLSearchParams({
       _nkw: query,
       _udhi: "50",
@@ -126,23 +139,30 @@ export const ebayAdapter: ListingAdapter = {
     try {
       const result = await scrape({
         url: searchUrl,
-        formats: ["markdown"],
-        waitBeforeScraping: 2000,
+        formats: ["markdown", "html"],
+        waitBeforeScraping: 3000,
         country: "CA",
       });
 
       const md = result.markdown_content || "";
       if (!md) {
         console.warn("eBay: empty markdown from Olostep");
-        return [];
+        return { listings: [], error: "Empty markdown response from Olostep" };
       }
 
-      const listings = parseMarkdownListings(md);
-      console.log(`eBay: parsed ${listings.length} listings from ${md.length} chars of markdown`);
-      return listings;
+      const listings = enrichListingsWithHtmlImages(
+        parseMarkdownListings(md),
+        result.html_content,
+        "ebay"
+      );
+      const withImages = listings.filter((l) => l.images.length > 0).length;
+      console.log(
+        `eBay: parsed ${listings.length} listings (${withImages} with images) from ${md.length} chars markdown`
+      );
+      return { listings };
     } catch (err) {
       console.error("eBay scrape failed:", err);
-      return [];
+      return { listings: [], error: String(err) };
     }
   },
 };

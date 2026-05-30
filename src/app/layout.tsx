@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Lora } from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -12,10 +12,16 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const lora = Lora({
+  variable: "--font-lora",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+});
+
 export const metadata: Metadata = {
-  title: "Timex Tracker — Vintage Watch Listings",
+  title: "Timex Tracker — Curated Vintage Watch Listings",
   description:
-    "AI-powered marketplace tracker for vintage Timex watches. Surfaces interesting listings from eBay, Etsy, and more.",
+    "A premium, AI-driven collector's hub and marketplace tracker for vintage Timex watches. Scoring interesting finds from eBay, Etsy, and global listings.",
 };
 
 export default function RootLayout({
@@ -26,9 +32,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${lora.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col antialiased bg-background text-foreground">{children}</body>
     </html>
   );
 }

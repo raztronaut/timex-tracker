@@ -4,13 +4,10 @@ import { etsyAdapter } from "./etsy";
 import { chrono24Adapter } from "./chrono24";
 import { sampleAdapter } from "./sample";
 
-export const adapters: ListingAdapter[] = [
+export const liveAdapters: ListingAdapter[] = [
   ebayAdapter,
   etsyAdapter,
   chrono24Adapter,
-  sampleAdapter,
 ];
 
-export function getAdapter(source: string): ListingAdapter | undefined {
-  return adapters.find((a) => a.source === source);
-}
+export { sampleAdapter };

@@ -3,10 +3,6 @@ const API_URL = "https://api.olostep.com/v1/scrapes";
 export interface OlostepScrapeOptions {
   url: string;
   formats: string[];
-  llmExtract?: {
-    schema?: Record<string, unknown>;
-    prompt?: string;
-  };
   waitBeforeScraping?: number;
   country?: string;
 }
@@ -14,7 +10,6 @@ export interface OlostepScrapeOptions {
 export interface OlostepResult {
   markdown_content?: string;
   html_content?: string;
-  json_content?: unknown;
 }
 
 export async function scrape(options: OlostepScrapeOptions): Promise<OlostepResult> {
@@ -28,9 +23,6 @@ export async function scrape(options: OlostepScrapeOptions): Promise<OlostepResu
     formats: options.formats,
   };
 
-  if (options.llmExtract) {
-    body.llm_extract = options.llmExtract;
-  }
   if (options.waitBeforeScraping) {
     body.wait_before_scraping = options.waitBeforeScraping;
   }

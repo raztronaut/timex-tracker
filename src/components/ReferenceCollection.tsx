@@ -1,82 +1,55 @@
-"use client";
-
 import { ExternalLink } from "lucide-react";
-
-interface ReferenceBuy {
-  title: string;
-  url: string;
-  image: string;
-  price: string;
-  note: string;
-}
-
-const REFERENCE_BUYS: ReferenceBuy[] = [
-  {
-    title: "Timex Marlin Mechanical",
-    url: "https://www.ebay.ca/itm/377073705816",
-    image:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Timex_Marlin_watch.jpg/440px-Timex_Marlin_watch.jpg",
-    price: "$43.49",
-    note: "1970s gold tone hand-wind dress watch",
-  },
-  {
-    title: "Timex Q Reissue",
-    url: "https://www.ebay.ca/itm/117111976291",
-    image:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Timex_Q_1979_Reissue.jpg/440px-Timex_Q_1979_Reissue.jpg",
-    price: "$35.99",
-    note: "38mm Pepsi bezel reissue",
-  },
-  {
-    title: "Timex Electric Dynabeat",
-    url: "https://www.etsy.com/ca/listing/4469739360",
-    image:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/0/00/Timex_Electric_watch.jpg/440px-Timex_Electric_watch.jpg",
-    price: "$47.00",
-    note: "NOS 1970s deadstock",
-  },
-];
+import { ListingImage } from "@/components/ui";
+import { TASTE_PROFILE } from "@/lib/taste-profile";
 
 export function ReferenceCollection() {
   return (
-    <div className="mb-6 rounded-lg border border-stone-200 bg-white p-4">
-      <div className="mb-3">
-        <h2 className="text-sm font-semibold text-foreground">
-          Taste Profile
+    <div className="mb-6 rounded-xl border border-zinc-800 bg-zinc-900/20 p-5">
+      <div className="mb-4">
+        <h2 className="font-sans text-sm font-semibold tracking-tight text-foreground">
+          Taste Profile Showcase
         </h2>
-        <p className="text-xs text-muted">
-          Scoring is anchored on these recent buys — vintage mechanicals,
-          reissues, and deadstock finds
+        <p className="mt-0.5 text-xs text-zinc-400 text-pretty">
+          AI scoring is calibrated against these reference buys — vintage promotional models, mechanicals, and rare collaborations.
         </p>
       </div>
-      <div className="grid grid-cols-3 gap-3">
-        {REFERENCE_BUYS.map((buy) => (
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {TASTE_PROFILE.map((ref) => (
           <a
-            key={buy.url}
-            href={buy.url}
+            key={ref.listing.url}
+            href={ref.listing.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="group flex gap-3 rounded-md border border-stone-100 p-2 transition-colors hover:border-stone-300 hover:bg-stone-50"
+            className="group flex items-center gap-3.5 rounded-2xl bg-zinc-900/30 p-2 border border-zinc-800/40 transition-[box-shadow,background-color,border-color] duration-200 ease-out hover:bg-zinc-900/60 hover:border-zinc-700 active:scale-[0.96]"
           >
-            <div className="h-14 w-14 shrink-0 overflow-hidden rounded bg-stone-100">
-              <img
-                src={buy.image}
-                alt={buy.title}
-                className="h-full w-full object-cover"
+            {/* Watch Thumbnail Frame with subtle white outline overlay */}
+            <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 transition-colors duration-200">
+              <ListingImage
+                src={ref.listing.images[0]}
+                alt={ref.shortTitle}
+                fill
+                sizes="48px"
+                className="object-cover transition-transform duration-300 ease-out group-hover:scale-[1.05]"
               />
+              <div className="absolute inset-0 rounded-lg border border-white/10 pointer-events-none" />
             </div>
+            
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium leading-tight text-foreground truncate">
-                {buy.title}
+              <p className="truncate text-xs font-semibold tracking-tight text-zinc-200 transition-colors group-hover:text-zinc-50">
+                {ref.shortTitle}
               </p>
-              <p className="text-[10px] text-muted truncate">{buy.note}</p>
-              <div className="mt-1 flex items-center gap-1">
-                <span className="text-xs font-semibold text-foreground">
-                  {buy.price}
+              <p className="truncate text-[11px] text-zinc-400 font-normal mt-0.5">
+                {ref.note}
+              </p>
+              <div className="mt-1 flex items-center gap-1.5">
+                <span className="text-[11px] font-bold tabular-nums text-zinc-200">
+                  {ref.totalPriceCad}
                 </span>
+                <span className="text-[9px] text-zinc-500 uppercase font-mono">CAD</span>
                 <ExternalLink
                   size={10}
-                  className="text-muted opacity-0 transition-opacity group-hover:opacity-100"
+                  className="text-zinc-400 opacity-0 transition-opacity duration-200 ease-out group-hover:opacity-100 ml-auto"
                 />
               </div>
             </div>

@@ -48,9 +48,31 @@ export interface SyncRun {
   errors: number;
 }
 
+export interface NormalizedListing {
+  source: ListingSource;
+  sourceId: string;
+  url: string;
+  title: string;
+  price: number;
+  currency: string;
+  shippingCost: number | null;
+  shippingUnknown: boolean;
+  totalCostCad: number;
+  conditionRaw: string;
+  isBroken: boolean;
+  images: string[];
+  location: string | null;
+  listedAt: string | null;
+}
+
+export interface AdapterResult {
+  listings: RawListing[];
+  error?: string;
+}
+
 export interface ListingAdapter {
   source: ListingSource;
-  fetchListings(query: string): Promise<RawListing[]>;
+  fetchListings(query: string): Promise<AdapterResult>;
 }
 
 export interface InterestResult {

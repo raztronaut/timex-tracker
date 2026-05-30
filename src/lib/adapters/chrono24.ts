@@ -1,13 +1,11 @@
-import type { ListingAdapter, RawListing } from "../types";
+import type { ListingAdapter, AdapterResult } from "../types";
 
 export const chrono24Adapter: ListingAdapter = {
   source: "chrono24",
 
-  async fetchListings(_query: string): Promise<RawListing[]> {
+  async fetchListings(_query: string): Promise<AdapterResult> {
     // Chrono24 has no public API and aggressively blocks automated requests.
-    // This adapter is a stub that returns an empty array. When a public API
-    // becomes available, implement it here following the same interface.
-    console.log("Chrono24: stub adapter, no public API available — returning []");
-    return [];
+    // This adapter is a stub — returns empty with no error (not a failure).
+    return { listings: [] };
   },
 };

@@ -4,6 +4,20 @@
 
 A tool for a vintage Timex collector to stay on top of interesting listings across eBay, Etsy, and other marketplaces — without manually checking each site.
 
+## Documentation
+
+| Document | Audience | Contents |
+|----------|----------|----------|
+| [docs/architecture.md](docs/architecture.md) | Devs, agents | Pipeline, module responsibilities, data flow, failure modes |
+| [docs/development.md](docs/development.md) | Devs | Local setup, safe development, testing, debugging, deploy |
+| [docs/adapters.md](docs/adapters.md) | Devs, agents | Adapter contract, per-marketplace notes, how to add a marketplace |
+| [docs/scoring.md](docs/scoring.md) | Devs, agents | Taste profile, keyword rules, LLM path, thresholds |
+| [docs/database.md](docs/database.md) | Devs, agents | Schema, upsert behavior, row mapping, migration notes |
+| [docs/api.md](docs/api.md) | Devs, agents | Route reference, auth, params, response shapes |
+| [docs/adr/](docs/adr/) | Devs, agents | Architectural decisions and their rationale |
+| [CONTEXT.md](CONTEXT.md) | Agents | Domain vocabulary |
+| [AGENTS.md](AGENTS.md) | Agents | Read order, constraints, commands, edit map |
+
 ## What It Does
 
 Timex Tracker syncs listings, filters out the noise, and surfaces the few worth paying attention to. It answers one question: **"Is anything good out there right now?"**
@@ -16,11 +30,11 @@ Timex Tracker syncs listings, filters out the noise, and surfaces the few worth 
 
 | Purchase | Why it matters |
 |----------|---------------|
-| [Timex Marlin Mechanical (1970s)](https://www.ebay.ca/itm/377073705816) | Loves vintage hand-wind dress watches |
-| [Timex Q Reissue (Pepsi bezel)](https://www.ebay.ca/itm/117111976291) | Drawn to reissues of iconic models |
-| [Timex Electric Dynabeat (NOS)](https://www.etsy.com/ca/listing/4469739360) | Values deadstock and uncommon references |
+| [Timex Marlin Mechanical (1970s)](https://www.ebay.ca/itm/377073705816) | Vintage hand-wind dress watches |
+| [Timex Breyers Ice Cream Watch](https://www.ebay.ca/itm/377073705817) | Vintage promotional / brand collaboration pieces |
+| [Timex DeKalb Corn Watch (NOS)](https://www.ebay.ca/itm/377073705818) | Rare promotional items, deadstock/NOS condition |
 
-These define the taste profile. A listing with keywords like "Marlin", "Todd Snyder collab", "NOS", or "1970s" scores higher. A plain Easy Reader scores lower. The result is a ranked feed of **candidates** — listings that pass all rules and score well.
+These define the taste profile. A listing with keywords like "Marlin", "DeKalb", "NOS", or "1970s" scores higher. A plain Easy Reader scores lower. The result is a ranked feed of **candidates** — listings that pass all rules and score well.
 
 ## How It Works
 
@@ -36,30 +50,29 @@ These define the taste profile. A listing with keywords like "Marlin", "Todd Sny
 5. SURFACE    Show candidates first, with scores, tags, and rationale
 ```
 
-**Sync** runs on a daily cron (Vercel) or manually via the dashboard. Each sync pulls from a pluggable set of marketplace adapters — eBay and Etsy are live via Olostep; Chrono24 is stubbed (no public API); sample data guarantees the demo always works.
+**Sync** runs on a daily cron (Vercel) or manually via the dashboard. Each sync pulls from a pluggable set of marketplace adapters — eBay and Etsy are live via Olostep; Chrono24 is stubbed (no public API). If all live adapters return zero listings and none errored, sample data fills the demo. If an adapter failed, the failure is surfaced instead.
 
 **Scoring** has two modes:
-- **Keyword scorer** (default): Zero API cost. A weighted rule set derived from the taste profile — `"marlin"` = +20, `"deadstock"` = +25, `"easy reader"` = -10. Instant, deterministic, surprisingly effective.
-- **LLM scorer** (opt-in via `ENABLE_AI_SCORING=true`): Uses GPT-4o-mini with structured output. The taste profile is fed as few-shot context. Returns score, tags, and a one-line rationale. Falls back to keywords on failure.
+- **Keyword scorer** (default): A weighted rule set derived from the taste profile. Zero API cost, <1ms per listing, deterministic, fully auditable.
+- **LLM scorer** (opt-in via `ENABLE_AI_SCORING=true`): GPT-4o-mini with structured output. Falls back to keywords on failure.
 
-The keyword scorer isn't a compromise — it's a product decision. For a single-collector tool checking 50 listings 4x/day, burning LLM credits on every sync is wasteful. The keyword approach runs in <1ms per listing, costs nothing, and is fully auditable. The LLM is the upgrade path for when the collector wants to support more nuanced taste (e.g., "I prefer 34-36mm cases").
+The keyword scorer is the default by design — see [ADR 0003](docs/adr/0003-keyword-scorer-default.md). The LLM path is the upgrade for more nuanced taste.
 
 ## Key Decisions
 
-**Why Olostep instead of official APIs?** The eBay Browse API requires developer account approval and was unavailable during development. Olostep handles JavaScript rendering, proxy rotation, and anti-bot measures. We scrape search results as markdown and parse them ourselves — cheaper per credit than LLM extraction, more predictable, and gives us full control over the parsing logic.
+Each is documented as an ADR in [docs/adr/](docs/adr/).
 
-**Why separate rules from scoring?** Rules are binary gates (cost, condition) that should never be fuzzy. Scoring is subjective (taste). Mixing them would mean an LLM could override a budget constraint. Keeping them separate means the system is auditable: you can always explain why something was included or excluded.
-
-**Why a "Taste Profile" section in the UI?** The brief says "is interesting" — which is subjective. Showing the reference purchases makes the scoring transparent. The collector can see *why* the tool thinks something is interesting, grounded in their own history.
-
-**Why no Chrono24?** No public API. Aggressive bot blocking. The adapter interface is there — adding Chrono24 (or any other marketplace) is a single file implementing `fetchListings(query): Promise<RawListing[]>`.
+- **Olostep over official APIs.** eBay Browse API approval was unavailable; Olostep handles JS rendering, proxies, and anti-bot. We parse the markdown ourselves — deterministic, testable, zero LLM cost.
+- **Rules separate from scoring.** Cost and condition are binary gates; taste is subjective. An LLM can never override a budget constraint.
+- **Taste Profile in the UI.** "Interesting" is subjective. Showing the reference purchases makes scoring transparent and grounded.
+- **No Chrono24.** No public API, aggressive bot blocking. The adapter interface is ready when a scraping path becomes viable.
 
 ## Tradeoffs
 
-- **Shipping estimates aren't perfect.** Olostep extracts what's visible on the search results page. Calculated shipping may not be shown until checkout. Unknown shipping is treated as $0, which slightly over-counts candidates.
+- **Shipping estimates aren't perfect.** Olostep extracts what's visible on the search results page. Calculated shipping may not be shown until checkout. Unknown shipping is treated as $0 for the cost rule, but the UI labels it "shipping TBD" so the collector knows the total is a floor estimate, not exact.
 - **No auth / multi-user.** This is a single-collector tool. Auth adds complexity without product value.
-- **Sample data stands in for real listings.** The 3 reference buys are seeded so the demo always has data, even if Olostep is unavailable. They use the real eBay/Etsy source labels.
-- **Sync cooldown is a confirm dialog, not a hard block.** The collector should be able to force-sync, but with awareness that it costs credits.
+- **Sample data is a fallback, not always-on.** When live adapters find listings, sample data is skipped entirely. Sample data only kicks in when all adapters genuinely find nothing *and* no errors occurred. If adapters fail (Olostep down, rate-limited), the failure is reported instead of silently masking it with demo data.
+- **Sync is credit-protected.** Both manual and cron sync require `CRON_SECRET` when set, and a server-side 5-minute cooldown prevents accidental rapid syncs. The UI confirm dialog is a secondary safeguard.
 
 ## What I'd Do Next
 
@@ -102,6 +115,8 @@ cp .env.example .env.local
 | `OLOSTEP_API_KEY` | Yes | Olostep dashboard |
 | `OPENAI_API_KEY` | No | OpenAI platform (only if `ENABLE_AI_SCORING=true`) |
 | `ENABLE_AI_SCORING` | No | Set to `true` to use LLM scorer |
+| `CRON_SECRET` | No | Shared secret protecting sync endpoints |
+| `NEXT_PUBLIC_SYNC_SECRET` | No | Must match `CRON_SECRET` — lets UI trigger sync |
 
 ### Run
 
@@ -119,6 +134,38 @@ npx vercel
 
 Set env vars in the Vercel dashboard. The cron job syncs daily at 14:00 UTC (`vercel.json`).
 
+## Verification
+
+Everything below can be verified **without Olostep credits** — the test suite uses mocks and fixtures.
+
+```bash
+npm test          # 98 unit tests across 10 files
+npx tsc --noEmit  # TypeScript strict type-check
+npm run lint      # ESLint
+npm run build     # Full Next.js production build
+```
+
+### What the tests cover
+
+| Area | Tests | Key assertions |
+|------|-------|---------------|
+| eBay markdown parser | `ebay-parse.test.ts` | Titles, prices, shipping, images, deduplication, edge formats |
+| Etsy markdown parser | `etsy-parse.test.ts` | Same as eBay, plus CA$/$ price formats |
+| Image extraction | `parse-images.test.ts` | eBay/Etsy image URL extraction, HTML enrichment |
+| Normalization + rules | `normalize.test.ts` | CAD conversion, $50 budget rule, broken detection, shippingUnknown flag |
+| Condition detection | `condition.test.ts` | "For parts" = broken; "needs battery" = OK |
+| Currency conversion | `currency.test.ts` | Static FX rates, unknown-currency fallback |
+| Keyword scorer | `scorer.test.ts` | Rule weights, tag assignment, rationale text |
+| Sync pipeline | `sync.test.ts` | Adapter error vs empty, sample fallback logic, pass/exclude split, exception handling |
+| Olostep client | `olostep.test.ts` | Request shape, auth header, error responses, missing key |
+| Sync status | `sync-status.test.ts` | Row mapping |
+
+### What requires live credentials
+
+- Triggering a real sync → needs `OLOSTEP_API_KEY` + Supabase keys
+- LLM scoring → needs `OPENAI_API_KEY` + `ENABLE_AI_SCORING=true`
+- Vercel cron → auto-set on Vercel deploy
+
 ## Project Structure
 
 ```
@@ -126,7 +173,7 @@ src/
 ├── app/
 │   ├── api/
 │   │   ├── listings/route.ts      # Filterable listing query
-│   │   ├── sync/route.ts          # Trigger sync pipeline
+│   │   ├── sync/route.ts          # Trigger sync pipeline (auth-protected)
 │   │   └── sync-status/route.ts   # Sync history + counts
 │   ├── layout.tsx
 │   ├── page.tsx
@@ -134,26 +181,34 @@ src/
 ├── components/
 │   ├── Dashboard.tsx              # Main orchestrator
 │   ├── ReferenceCollection.tsx    # Taste profile display
+│   ├── SyncStatus.tsx             # Sync indicator + cooldown
+│   └── ui/                        # ListingImage, ScoreBadge, TagList, SourceBadge, etc.
+├── features/listings/
 │   ├── ListingCard.tsx            # Listing grid card
 │   ├── ListingDrawer.tsx          # Detail panel
-│   ├── FilterBar.tsx              # Filter / sort / source
-│   ├── SyncStatus.tsx             # Sync indicator + cooldown
-│   ├── ScoreBadge.tsx             # Interest score badge
-│   ├── TagList.tsx                # Interest tag pills
-│   └── SourceBadge.tsx            # Marketplace badge
+│   ├── ListingGrid.tsx            # Responsive grid
+│   └── FilterBar.tsx              # Filter / sort / source
+├── hooks/
+│   ├── useListings.ts             # Client data fetching
+│   └── useSync.ts                 # Sync trigger + status
 └── lib/
     ├── adapters/
     │   ├── index.ts               # Adapter registry
     │   ├── ebay.ts                # eBay via Olostep markdown
     │   ├── etsy.ts                # Etsy via Olostep markdown
     │   ├── chrono24.ts            # Stub (no public API)
-    │   └── sample.ts             # Seeded data + reference buys
+    │   ├── sample.ts              # Demo fallback data
+    │   └── parse-images.ts        # Image URL extraction + HTML enrichment
+    ├── __tests__/                 # 10 test files
     ├── types.ts                   # TypeScript types
     ├── olostep.ts                 # Olostep API client
-    ├── supabase.ts                # Supabase client
+    ├── supabase.ts                # Supabase service client
+    ├── listings.ts                # DB persistence + queries
     ├── normalize.ts               # Normalization + rule filters
     ├── condition.ts               # Broken / battery detection
-    ├── currency.ts                # CAD conversion
+    ├── currency.ts                # Static CAD conversion
     ├── scorer.ts                  # Keyword + LLM scoring
+    ├── taste-profile.ts           # Reference purchases + taste summary
+    ├── image-loader.ts            # Next.js image config helper
     └── sync.ts                    # Sync pipeline orchestrator
 ```

@@ -1,9 +1,13 @@
-import type { ListingAdapter, RawListing } from "../types";
+import type { ListingAdapter, RawListing, AdapterResult } from "../types";
 import { scrape } from "../olostep";
+import {
+  enrichListingsWithHtmlImages,
+  extractMarketplaceImageUrls,
+} from "./parse-images";
 
 const ETSY_SEARCH_URL = "https://www.etsy.com/ca/search";
 
-function parseMarkdownListings(md: string): RawListing[] {
+export function parseMarkdownListings(md: string): RawListing[] {
   const listings: RawListing[] = [];
   const lines = md.split("\n");
   let current: Partial<RawListing> | null = null;
@@ -54,10 +58,10 @@ function parseMarkdownListings(md: string): RawListing[] {
       current.shippingCost = 0;
     }
 
-    // Match Etsy image URLs
-    const imgMatch = line.match(/(https?:\/\/i\.etsystatic\.com\/[^\s)]+)/);
-    if (imgMatch && current.images) {
-      current.images.push(imgMatch[1]);
+    if (current.images) {
+      for (const url of extractMarketplaceImageUrls(line, "etsy")) {
+        current.images.push(url);
+      }
     }
   }
 
@@ -65,7 +69,7 @@ function parseMarkdownListings(md: string): RawListing[] {
     finalizeListing(current, listings);
   }
 
-  return listings;
+  return dedupeListings(listings);
 }
 
 function finalizeListing(partial: Partial<RawListing>, out: RawListing[]) {
@@ -79,9 +83,18 @@ function finalizeListing(partial: Partial<RawListing>, out: RawListing[]) {
     currency: partial.currency || "CAD",
     shippingCost: partial.shippingCost ?? null,
     conditionRaw: partial.conditionRaw || "Pre-Owned",
-    images: partial.images || [],
+    images: [...new Set(partial.images || [])],
     location: partial.location || null,
     listedAt: null,
+  });
+}
+
+function dedupeListings(listings: RawListing[]): RawListing[] {
+  const seen = new Set<string>();
+  return listings.filter((l) => {
+    if (seen.has(l.sourceId)) return false;
+    seen.add(l.sourceId);
+    return true;
   });
 }
 
@@ -93,7 +106,7 @@ function extractListingId(url: string): string {
 export const etsyAdapter: ListingAdapter = {
   source: "etsy",
 
-  async fetchListings(query: string): Promise<RawListing[]> {
+  async fetchListings(query: string): Promise<AdapterResult> {
     const params = new URLSearchParams({
       q: query,
       max: "50",
@@ -105,23 +118,30 @@ export const etsyAdapter: ListingAdapter = {
     try {
       const result = await scrape({
         url: searchUrl,
-        formats: ["markdown"],
-        waitBeforeScraping: 2000,
+        formats: ["markdown", "html"],
+        waitBeforeScraping: 3000,
         country: "CA",
       });
 
       const md = result.markdown_content || "";
       if (!md) {
         console.warn("Etsy: empty markdown from Olostep");
-        return [];
+        return { listings: [], error: "Empty markdown response from Olostep" };
       }
 
-      const listings = parseMarkdownListings(md);
-      console.log(`Etsy: parsed ${listings.length} listings from ${md.length} chars of markdown`);
-      return listings;
+      const listings = enrichListingsWithHtmlImages(
+        parseMarkdownListings(md),
+        result.html_content,
+        "etsy"
+      );
+      const withImages = listings.filter((l) => l.images.length > 0).length;
+      console.log(
+        `Etsy: parsed ${listings.length} listings (${withImages} with images) from ${md.length} chars markdown`
+      );
+      return { listings };
     } catch (err) {
       console.error("Etsy scrape failed:", err);
-      return [];
+      return { listings: [], error: String(err) };
     }
   },
 };

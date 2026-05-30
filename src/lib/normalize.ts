@@ -1,17 +1,9 @@
-import type { RawListing, Listing } from "./types";
+import type { RawListing, NormalizedListing } from "./types";
 import { toCad } from "./currency";
 import { isBroken } from "./condition";
 
-export function normalize(raw: RawListing): Omit<
-  Listing,
-  | "id"
-  | "interestScore"
-  | "interestTags"
-  | "interestRationale"
-  | "isCandidate"
-  | "firstSeenAt"
-  | "lastSeenAt"
-> {
+export function normalize(raw: RawListing): NormalizedListing {
+  const shippingUnknown = raw.shippingCost == null;
   const shippingCad = raw.shippingCost != null ? toCad(raw.shippingCost, raw.currency) : 0;
   const priceCad = toCad(raw.price, raw.currency);
   const totalCostCad = Math.round((priceCad + shippingCad) * 100) / 100;
@@ -24,6 +16,7 @@ export function normalize(raw: RawListing): Omit<
     price: raw.price,
     currency: raw.currency,
     shippingCost: raw.shippingCost,
+    shippingUnknown,
     totalCostCad,
     conditionRaw: raw.conditionRaw,
     isBroken: isBroken(raw.conditionRaw, raw.title),
@@ -34,6 +27,7 @@ export function normalize(raw: RawListing): Omit<
 }
 
 export const MAX_TOTAL_COST_CAD = 50;
+export const CANDIDATE_THRESHOLD = 55;
 
 export function passesRules(listing: { totalCostCad: number; isBroken: boolean }): boolean {
   return listing.totalCostCad <= MAX_TOTAL_COST_CAD && !listing.isBroken;

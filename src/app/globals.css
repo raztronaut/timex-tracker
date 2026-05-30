@@ -1,18 +1,26 @@
 @import "tailwindcss";
 
 :root {
-  --background: #fafaf9;
-  --foreground: #1c1917;
-  --card: #ffffff;
-  --card-border: #e7e5e4;
-  --muted: #78716c;
+  --background: #09090b;
+  --foreground: #fafafa;
+  --card: #18181b;
+  --card-border: #27272a;
+  --muted: #a1a1aa;
   --accent: #d97706;
-  --accent-light: #fef3c7;
-  --success: #16a34a;
-  --danger: #dc2626;
-  --score-high: #16a34a;
-  --score-mid: #d97706;
-  --score-low: #78716c;
+  --accent-light: rgba(217, 119, 6, 0.1);
+  --success: #10b981;
+  --danger: #ef4444;
+  --score-high: #10b981;
+  --score-mid: #f59e0b;
+  --score-low: #71717a;
+  
+  /* Subtle clean shadows */
+  --shadow-border:
+    0px 0px 0px 1px rgba(255, 255, 255, 0.05),
+    0px 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-border-hover:
+    0px 0px 0px 1px rgba(255, 255, 255, 0.08),
+    0px 4px 12px rgba(0, 0, 0, 0.5);
 }
 
 @theme inline {
@@ -30,9 +38,113 @@
   --color-score-low: var(--score-low);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-lora);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+/* ---- Custom Utilities ---- */
+
+/* Clean dashboard showcase card */
+.watch-showcase-velvet {
+  background: #18181b;
+  border: 1px solid #27272a;
+  box-shadow: var(--shadow-border);
+}
+
+/* Clean square watch thumbnail frame */
+.watch-bezel-frame {
+  border: 1px solid #27272a;
+  background: #09090b;
+}
+
+.watch-bezel-frame:hover {
+  border-color: #3f3f46;
+}
+
+/* High-contrast solid text color */
+.text-gold-gradient {
+  color: #fafafa;
+}
+
+/* Sleek sidebar panel wrapper */
+.glass-panel {
+  background: rgba(24, 24, 27, 0.95);
+  border-left: 1px solid #27272a;
+}
+
+/* ---- Animations & Keyframes ---- */
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.card-enter {
+  animation: card-enter 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.drawer-stagger > * {
+  animation: fade-in-up 250ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0;
+}
+
+.drawer-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.drawer-stagger > *:nth-child(2) { animation-delay: 40ms; }
+.drawer-stagger > *:nth-child(3) { animation-delay: 80ms; }
+.drawer-stagger > *:nth-child(4) { animation-delay: 120ms; }
+.drawer-stagger > *:nth-child(5) { animation-delay: 160ms; }
+.drawer-stagger > *:nth-child(6) { animation-delay: 200ms; }
+.drawer-stagger > *:nth-child(7) { animation-delay: 240ms; }
+.drawer-stagger > *:nth-child(8) { animation-delay: 280ms; }
+.drawer-stagger > *:nth-child(9) { animation-delay: 320ms; }
+
+.status-pulse-dot {
+  opacity: 1;
 }

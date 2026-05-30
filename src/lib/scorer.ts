@@ -1,6 +1,5 @@
 import type { InterestResult } from "./types";
-
-// --- Keyword-based scorer (default, zero API cost) ---
+import { TASTE_SUMMARY } from "./taste-profile";
 
 interface ScoringRule {
   pattern: RegExp;
@@ -10,6 +9,8 @@ interface ScoringRule {
 
 const RULES: ScoringRule[] = [
   { pattern: /\bmarlin\b/i, points: 20, tag: "vintage" },
+  { pattern: /\bdekalb\b/i, points: 25, tag: "collab" },
+  { pattern: /\bbreyers\b/i, points: 25, tag: "collab" },
   { pattern: /\belectric\b/i, points: 15, tag: "vintage" },
   { pattern: /\bdynabeat\b/i, points: 20, tag: "rare-model" },
   { pattern: /\bmercury\b/i, points: 18, tag: "vintage" },
@@ -88,8 +89,6 @@ function scoreWithKeywords(listing: ScoringInput): InterestResult {
   return { score, tags, rationale: buildRationale(tags, score) };
 }
 
-// --- LLM scorer (opt-in via ENABLE_AI_SCORING=true) ---
-
 async function scoreWithAI(listing: ScoringInput): Promise<InterestResult> {
   const { generateObject } = await import("ai");
   const { openai } = await import("@ai-sdk/openai");
@@ -104,19 +103,13 @@ async function scoreWithAI(listing: ScoringInput): Promise<InterestResult> {
   const { object } = await generateObject({
     model: openai("gpt-4o-mini"),
     schema,
-    system: `You are a vintage Timex watch collecting expert. The collector loves:
-- 1960s-80s vintage (Marlin, Mercury, Viscount, Electric, Dynabeat)
-- Collaborations (Todd Snyder, Peanuts/Snoopy, Nigel Cabourn, END.)
-- Deadstock/NOS finds, reissues (Q Timex, Marlin reissue)
-- Military/field watches (Camper, MK1)
+    system: `You are a vintage Timex watch collecting expert. ${TASTE_SUMMARY}
 Score 0-100. Tags: collab, deadstock, nos, vintage, rare-model, reissue, limited-edition, military, diver, dress. Be opinionated.`,
     prompt: `Title: ${listing.title}\nCondition: ${listing.conditionRaw}\nTotal: $${listing.totalCostCad} CAD\nSource: ${listing.source}`,
   });
 
   return { score: object.score, tags: object.tags, rationale: object.rationale };
 }
-
-// --- Public API ---
 
 const USE_AI = process.env.ENABLE_AI_SCORING === "true";
 
@@ -128,7 +121,7 @@ export async function scoreListing(listing: ScoringInput): Promise<InterestResul
   try {
     return await scoreWithAI(listing);
   } catch (err) {
-    console.warn("AI scorer failed, falling back to keywords:", (err as Error).message);
+    console.warn("AI scorer failed, falling back to keywords:", String(err));
     return scoreWithKeywords(listing);
   }
 }

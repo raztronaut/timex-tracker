@@ -1,6 +1,7 @@
 "use client";
 
-import { RefreshCw, AlertTriangle } from "lucide-react";
+import { RefreshCw, AlertTriangle, CheckCircle } from "lucide-react";
+import { Button } from "./ui";
 
 interface SyncStatusProps {
   totalListings: number;
@@ -10,7 +11,7 @@ interface SyncStatusProps {
   onSync: () => void;
 }
 
-const COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
+const COOLDOWN_MS = 60 * 60 * 1000;
 
 function isOnCooldown(lastSyncAt: string | null): boolean {
   if (!lastSyncAt) return false;
@@ -18,12 +19,14 @@ function isOnCooldown(lastSyncAt: string | null): boolean {
 }
 
 function formatTimeSince(dateStr: string): string {
-  const mins = Math.floor((Date.now() - new Date(dateStr).getTime()) / 60000);
+  const mins = Math.floor(
+    (Date.now() - new Date(dateStr).getTime()) / 60000,
+  );
   if (mins < 1) return "just now";
   if (mins < 60) return `${mins}m ago`;
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `${hrs}h ago`;
-  return new Date(dateStr).toLocaleDateString("en-CA", {
+  return new Date(dateStr).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
   });
@@ -41,7 +44,7 @@ export function SyncStatus({
   const handleSync = () => {
     if (cooldown) {
       const ok = window.confirm(
-        "You synced less than 1 hour ago. Each sync uses Olostep API credits.\n\nSync again anyway?"
+        "You synced less than 1 hour ago. Each sync uses Olostep API credits.\n\nSync again anyway?",
       );
       if (!ok) return;
     }
@@ -49,30 +52,72 @@ export function SyncStatus({
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-4">
-      <div className="flex items-center gap-6 text-sm text-muted">
-        <span>
-          <strong className="text-foreground">{candidateCount}</strong> candidates
-        </span>
-        <span>
-          <strong className="text-foreground">{totalListings}</strong> total
-        </span>
-        {lastSyncAt && (
-          <span className="flex items-center gap-1">
-            {cooldown && <AlertTriangle size={12} className="text-amber-500" />}
-            Synced {formatTimeSince(lastSyncAt)}
+    <div className="flex flex-wrap items-center gap-4 bg-zinc-900/30 p-2 px-3.5 rounded-lg border border-zinc-800/80 shadow-sm">
+      <div className="flex items-center gap-4 text-xs text-zinc-400" aria-live="polite">
+        {/* Status dot */}
+        <div className="flex items-center gap-1.5">
+          <span
+            className={`inline-block h-1.5 w-1.5 rounded-full ${
+              syncing 
+                ? "bg-amber-500 animate-pulse" 
+                : "bg-emerald-500"
+            }`}
+          />
+          <span className="font-semibold text-zinc-300">
+            {syncing ? "Syncing..." : "Online"}
           </span>
+        </div>
+
+        {/* Divider */}
+        <span className="h-3 w-px bg-zinc-800" />
+
+        <span>
+          <strong className="font-semibold tabular-nums text-zinc-100">
+            {candidateCount}
+          </strong>{" "}
+          candidates
+        </span>
+
+        {/* Divider */}
+        <span className="h-3 w-px bg-zinc-800" />
+
+        <span>
+          <strong className="font-semibold tabular-nums text-zinc-100">
+            {totalListings}
+          </strong>{" "}
+          total
+        </span>
+
+        {lastSyncAt && (
+          <>
+            {/* Divider */}
+            <span className="h-3 w-px bg-zinc-800" />
+            <span className="flex items-center gap-1 text-zinc-400">
+              {cooldown ? (
+                <AlertTriangle size={12} className="text-amber-500" />
+              ) : (
+                <CheckCircle size={12} className="text-emerald-500" />
+              )}
+              Synced {formatTimeSince(lastSyncAt)}
+            </span>
+          </>
         )}
       </div>
 
-      <button
+      <Button
         onClick={handleSync}
         disabled={syncing}
-        className="flex items-center gap-1.5 rounded-lg bg-stone-900 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-stone-800 disabled:opacity-50"
+        aria-busy={syncing}
+        className="group relative flex items-center gap-2 rounded-md bg-zinc-900 border border-zinc-800 hover:border-zinc-700 hover:bg-zinc-850 hover:text-zinc-100 active:scale-[0.96] transition-[border-color,background-color,color] pl-2.5 pr-3.5 ml-auto md:ml-0"
       >
-        <RefreshCw size={12} className={syncing ? "animate-spin" : ""} />
-        {syncing ? "Syncing..." : "Sync Now"}
-      </button>
+        <RefreshCw 
+          size={12} 
+          className={`transition-transform duration-500 ${
+            syncing ? "animate-spin" : "group-hover:rotate-180"
+          }`} 
+        />
+        <span>{syncing ? "Syncing..." : "Sync Now"}</span>
+      </Button>
     </div>
   );
 }
