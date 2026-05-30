@@ -50,7 +50,7 @@ These define the taste profile. A listing with keywords like "Marlin", "DeKalb",
 5. SURFACE    Show candidates first, with scores, tags, and rationale
 ```
 
-**Sync** runs on a daily cron (Vercel) or manually via the dashboard. Each sync pulls from a pluggable set of marketplace adapters — eBay and Etsy are live via Olostep; Chrono24 is stubbed (no public API). If all live adapters return zero listings and none errored, sample data fills the demo. If an adapter failed, the failure is surfaced instead.
+**Sync** runs on a daily cron (Vercel) or manually via the dashboard. Each sync pulls sequentially from marketplace adapters — eBay and Etsy are live via Olostep; Chrono24 is stubbed (no public API). If all live adapters return zero listings and none errored, sample data fills the demo. When live adapters find real listings, stale demo data is purged. If an adapter failed, the failure is surfaced in the UI with amber warning banners.
 
 **Scoring** has two modes:
 - **Keyword scorer** (default): A weighted rule set derived from the taste profile. Zero API cost, <1ms per listing, deterministic, fully auditable.
@@ -139,7 +139,7 @@ Set env vars in the Vercel dashboard. The cron job syncs daily at 14:00 UTC (`ve
 Everything below can be verified **without Olostep credits** — the test suite uses mocks and fixtures.
 
 ```bash
-npm test          # 98 unit tests across 10 files
+npm test          # 119 unit tests across 10 files
 npx tsc --noEmit  # TypeScript strict type-check
 npm run lint      # ESLint
 npm run build     # Full Next.js production build
@@ -149,15 +149,15 @@ npm run build     # Full Next.js production build
 
 | Area | Tests | Key assertions |
 |------|-------|---------------|
-| eBay markdown parser | `ebay-parse.test.ts` | Titles, prices, shipping, images, deduplication, edge formats |
-| Etsy markdown parser | `etsy-parse.test.ts` | Same as eBay, plus CA$/$ price formats |
+| eBay markdown parser | `ebay-parse.test.ts` | Plain links, image-wrapped links (live format), prices, shipping, condition, images, deduplication |
+| Etsy markdown parser | `etsy-parse.test.ts` | Plain links, image-wrapped links, block-based multi-line format (live), sale prices, CA$/$ formats |
 | Image extraction | `parse-images.test.ts` | eBay/Etsy image URL extraction, HTML enrichment |
 | Normalization + rules | `normalize.test.ts` | CAD conversion, $50 budget rule, broken detection, shippingUnknown flag |
 | Condition detection | `condition.test.ts` | "For parts" = broken; "needs battery" = OK |
 | Currency conversion | `currency.test.ts` | Static FX rates, unknown-currency fallback |
 | Keyword scorer | `scorer.test.ts` | Rule weights, tag assignment, rationale text |
 | Sync pipeline | `sync.test.ts` | Adapter error vs empty, sample fallback logic, pass/exclude split, exception handling |
-| Olostep client | `olostep.test.ts` | Request shape, auth header, error responses, missing key |
+| Olostep client | `olostep.test.ts` | Request shape, auth header, error responses, missing key, hosted URL fallback, page status check, new scrape options |
 | Sync status | `sync-status.test.ts` | Row mapping |
 
 ### What requires live credentials

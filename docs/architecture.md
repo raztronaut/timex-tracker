@@ -20,7 +20,7 @@ Rules (binary gates: ≤$50 CAD total, not broken)
     └── Failing ──▶ Upsert as excluded row (no score, rationale explains why)
 ```
 
-All adapter fetches run concurrently via `Promise.allSettled`. If every live adapter returns zero listings *and* none reported an error, the sample adapter runs as a demo fallback. If any adapter errored, the failure is surfaced — sample data never masks real failures.
+Adapters run **sequentially** to avoid Vercel function timeout pressure (each Olostep scrape can take up to 55 seconds). If every live adapter returns zero listings *and* none reported an error, the sample adapter runs as a demo fallback. If any adapter errored, the failure is surfaced — sample data never masks real failures. When live adapters find at least one listing, any stale `source = "sample"` rows are purged from the database.
 
 ## Module responsibilities
 
@@ -29,7 +29,7 @@ All adapter fetches run concurrently via `Promise.allSettled`. If every live ada
 | `src/lib/types.ts` | All domain interfaces: `RawListing`, `NormalizedListing`, `Listing`, `AdapterResult`, `ListingAdapter`, `InterestResult`, `SyncRun` | Database column names, UI concerns |
 | `src/lib/adapters/*.ts` | Fetching raw listings from a single marketplace | Normalization, scoring, persistence |
 | `src/lib/adapters/parse-images.ts` | Image URL extraction from markdown/HTML; listing image enrichment | Adapter-specific parsing logic |
-| `src/lib/olostep.ts` | HTTP calls to the Olostep scrape API | Which marketplace is being scraped |
+| `src/lib/olostep.ts` | HTTP calls to the Olostep scrape API; hosted URL fallback; page status validation | Which marketplace is being scraped |
 | `src/lib/normalize.ts` | Currency conversion to CAD, broken detection, rule constants (`MAX_TOTAL_COST_CAD`, `CANDIDATE_THRESHOLD`) | Scoring, persistence |
 | `src/lib/condition.ts` | Broken-item regex patterns; "needs battery" exemption | Price, source, anything beyond title + condition text |
 | `src/lib/currency.ts` | Static FX rates; `toCad()` conversion | Everything outside (amount, currency) → CAD |
@@ -73,11 +73,14 @@ The persistence layer (`listings.ts`) is the only module that knows about snake_
 
 | Scenario | Behavior |
 |----------|----------|
-| Adapter throws | Caught by `Promise.allSettled`; `SyncResult` records `adapterError` |
+| Adapter throws | Caught by sequential try/catch; `SyncResult` records `adapterError` |
 | Adapter returns `{ listings: [], error: "..." }` | Error surfaced in result; zero listings counted; sample fallback suppressed |
 | All live adapters return zero listings, no errors | Sample adapter runs as demo fallback |
 | All live adapters return zero listings, at least one errored | No fallback — errors are reported to the UI |
 | Olostep returns empty markdown | Adapter returns `{ listings: [], error: "Empty markdown..." }` |
+| Olostep returns markdown but parser finds 0 listings | Adapter returns `{ listings: [], error: "Parser found 0 listings..." }` — prevents silent demo fallback |
+| Olostep inline content empty but hosted URL exists | Client fetches hosted URL as fallback before returning |
+| Olostep target page returns 4xx/5xx | `scrape()` throws with status code and page title |
 | `OLOSTEP_API_KEY` missing | `scrape()` throws; adapter catches and returns error |
 | LLM scorer fails | Falls back to keyword scorer; warning logged |
 | Upsert fails for a single listing | Error counted; other listings still processed |

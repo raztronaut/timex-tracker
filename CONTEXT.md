@@ -30,7 +30,7 @@ Domain vocabulary for the codebase. Use these terms consistently in code, commen
 
 **SyncResult** — Per-adapter outcome of a sync run: counts for `found`, `passed`, `excluded`, `errors`, plus timing and optional `adapterError`.
 
-**SyncRun** — Database record tracking a single adapter's sync execution: timestamps, source, counts.
+**SyncRun** — Database record tracking a single adapter's sync execution: timestamps, source, counts, and optional `adapterError` text for debugging.
 
 ## Adapter Concepts
 
@@ -64,7 +64,7 @@ Domain vocabulary for the codebase. Use these terms consistently in code, commen
 
 **ReferenceCollection** — Displays the three taste profile reference buys.
 
-**SyncStatus** — Last sync time, totals, candidate count, and the sync button.
+**SyncStatus** — Last sync time, totals, candidate count, sync button, and adapter warning banners (shown when adapters report errors or when demo fallback ran).
 
 ## Naming Conventions
 

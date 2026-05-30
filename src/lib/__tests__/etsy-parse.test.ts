@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "fs";
+import { join } from "path";
 import { parseMarkdownListings } from "../adapters/etsy";
 
 const SAMPLE_MD = `
@@ -141,5 +143,71 @@ describe("Etsy parseMarkdownListings (image-wrapped link format)", () => {
     expect(listings[0].shippingCost).toBe(0);
     expect(listings[1].title).toBe("Timex Expedition Field Watch");
     expect(listings[1].price).toBe(22.5);
+  });
+});
+
+describe("Etsy parseMarkdownListings (live Olostep multi-line format)", () => {
+  const liveMd = readFileSync(
+    join(__dirname, "fixtures/etsy-live-sample.md"),
+    "utf8",
+  );
+
+  it("parses all listings from multi-line block format", () => {
+    const listings = parseMarkdownListings(liveMd);
+    expect(listings).toHaveLength(4);
+  });
+
+  it("extracts title from image alt text", () => {
+    const listings = parseMarkdownListings(liveMd);
+    expect(listings[0].title).toContain("Leather watch for women");
+    expect(listings[2].title).toContain("Vintage Timex Quartz");
+  });
+
+  it("extracts image URL from standalone ![](etsystatic) line", () => {
+    const listings = parseMarkdownListings(liveMd);
+    for (const l of listings) {
+      expect(l.images.length).toBe(1);
+      expect(l.images[0]).toContain("etsystatic.com");
+    }
+  });
+
+  it("extracts listing ID into sourceId", () => {
+    const listings = parseMarkdownListings(liveMd);
+    expect(listings[0].sourceId).toBe("747503370");
+    expect(listings[1].sourceId).toBe("4461761357");
+  });
+
+  it("strips query params from listing URL", () => {
+    const listings = parseMarkdownListings(liveMd);
+    for (const l of listings) {
+      expect(l.url).not.toContain("?");
+      expect(l.url).toMatch(/etsy\.com\/listing\/\d+\//);
+    }
+  });
+
+  it("extracts regular price ($XX.XX)", () => {
+    const listings = parseMarkdownListings(liveMd);
+    expect(listings[0].price).toBe(41);
+    expect(listings[3].price).toBe(42.99);
+  });
+
+  it("extracts sale price from 'Sale Price $XX.XX' format", () => {
+    const listings = parseMarkdownListings(liveMd);
+    expect(listings[1].price).toBe(42.41);
+    expect(listings[2].price).toBe(15.75);
+  });
+
+  it("detects free shipping", () => {
+    const listings = parseMarkdownListings(liveMd);
+    expect(listings[2].shippingCost).toBe(0);
+    expect(listings[0].shippingCost).toBeNull();
+  });
+
+  it("sets source to etsy and condition to Pre-Owned", () => {
+    const listings = parseMarkdownListings(liveMd);
+    for (const l of listings) {
+      expect(l.source).toBe("etsy");
+      expect(l.conditionRaw).toBe("Pre-Owned");
+    }
   });
 });
