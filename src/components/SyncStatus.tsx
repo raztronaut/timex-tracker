@@ -55,8 +55,8 @@ export function SyncStatus({
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-4 bg-zinc-900/30 p-2 px-3.5 rounded-lg border border-zinc-800/80 shadow-sm">
-      <div className="flex items-center gap-4 text-xs text-zinc-400" aria-live="polite">
+    <div className="flex flex-wrap items-center gap-4 bg-card/50 p-2 px-3.5 rounded-lg border border-card-border shadow-[var(--shadow-border)]">
+      <div className="flex items-center gap-4 text-xs text-muted" aria-live="polite">
         {/* Status dot */}
         <div className="flex items-center gap-1.5">
           <span
@@ -66,26 +66,26 @@ export function SyncStatus({
                 : "bg-emerald-500"
             }`}
           />
-          <span className="font-semibold text-zinc-300">
+          <span className="font-semibold text-foreground">
             {syncing ? "Syncing..." : "Online"}
           </span>
         </div>
 
         {/* Divider */}
-        <span className="h-3 w-px bg-zinc-800" />
+        <span className="h-3 w-px bg-card-border/80" />
 
         <span>
-          <strong className="font-semibold tabular-nums text-zinc-100">
+          <strong className="font-semibold tabular-nums text-foreground">
             {candidateCount}
           </strong>{" "}
           candidates
         </span>
 
         {/* Divider */}
-        <span className="h-3 w-px bg-zinc-800" />
+        <span className="h-3 w-px bg-card-border/80" />
 
         <span>
-          <strong className="font-semibold tabular-nums text-zinc-100">
+          <strong className="font-semibold tabular-nums text-foreground">
             {totalListings}
           </strong>{" "}
           total
@@ -94,8 +94,8 @@ export function SyncStatus({
         {lastSyncAt && (
           <>
             {/* Divider */}
-            <span className="h-3 w-px bg-zinc-800" />
-            <span className="flex items-center gap-1 text-zinc-400">
+            <span className="h-3 w-px bg-card-border/80" />
+            <span className="flex items-center gap-1 text-muted">
               {cooldown ? (
                 <AlertTriangle size={12} className="text-amber-500" />
               ) : (
@@ -108,10 +108,11 @@ export function SyncStatus({
       </div>
 
       <Button
+        variant="secondary"
         onClick={handleSync}
         disabled={syncing}
         aria-busy={syncing}
-        className="group relative flex items-center gap-2 rounded-md bg-zinc-900 border border-zinc-800 hover:border-zinc-700 hover:bg-zinc-850 hover:text-zinc-100 active:scale-[0.96] transition-[border-color,background-color,color] pl-2.5 pr-3.5 ml-auto md:ml-0"
+        className="group pl-2.5 pr-3.5 ml-auto md:ml-0 font-semibold"
       >
         <RefreshCw 
           size={12} 

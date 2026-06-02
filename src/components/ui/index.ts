@@ -5,3 +5,5 @@ export { ScoreBadge } from "./ScoreBadge";
 export { Skeleton } from "./Skeleton";
 export { SourceBadge } from "./SourceBadge";
 export { TagList } from "./TagList";
+export { Component as StarsScrollingWheel } from "./stars-scrolling-wheel";
+

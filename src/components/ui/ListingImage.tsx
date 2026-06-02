@@ -17,7 +17,7 @@ interface ListingImageProps {
 export function ListingImagePlaceholder({ className }: { className?: string }) {
   return (
     <div
-      className={`flex flex-col items-center justify-center gap-2 bg-stone-900/80 text-stone-500 ${className ?? ""}`}
+      className={`flex flex-col items-center justify-center gap-2 bg-card-border/40 text-muted ${className ?? ""}`}
       role="img"
       aria-label="No image available"
     >
@@ -34,7 +34,7 @@ export function ListingImagePlaceholder({ className }: { className?: string }) {
         <circle cx="8.5" cy="8.5" r="1.5" />
         <path d="m21 15-5-5L5 21" />
       </svg>
-      <span className="text-[10px] font-medium uppercase tracking-wider text-stone-600">
+      <span className="text-[10px] font-medium uppercase tracking-wider text-muted/80">
         No photo
       </span>
     </div>
@@ -70,6 +70,7 @@ export function ListingImage({
         className={className}
         priority={priority}
         unoptimized
+        suppressHydrationWarning
         onError={() => setFailed(true)}
       />
     );
@@ -84,6 +85,7 @@ export function ListingImage({
       className={className}
       priority={priority}
       unoptimized
+      suppressHydrationWarning
       onError={() => setFailed(true)}
     />
   );
